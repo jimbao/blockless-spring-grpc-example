@@ -15,6 +15,10 @@ on:
       repository:
         required: true
         type: string
+      smoke:
+        description: 'Short end-to-end validation; not performance evidence'
+        default: false
+        type: boolean
   workflow_dispatch:
     inputs:
       pr:
@@ -26,6 +30,10 @@ on:
         default: 'pjlabs/blockless-spring-grpc-example'
         required: true
         type: string
+      smoke:
+        description: 'Short end-to-end validation; not performance evidence'
+        default: false
+        type: boolean
 permissions:
   contents: read
   pull-requests: write
@@ -38,6 +46,8 @@ jobs:
     timeout-minutes: 110
     env:
       PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
+      WARMUP: ${{ inputs.smoke && '1s' || '10s' }}
+      DURATION: ${{ inputs.smoke && '2s' || '20s' }}
       SOURCE_REPOSITORY: ${{ github.event.pull_request.base.repo.full_name || inputs.repository }}
     steps:
       - uses: actions/checkout@v4
