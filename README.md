@@ -143,3 +143,23 @@ mvn test -Dtest=BlocklessBenchmarkIT
 ## License
 
 Apache 2.0
+
+## Performance comparisons
+
+The **Performance comparison** workflow compares latest `main` with the proposed
+PR merge. It updates one PR comment and publishes a summary with raw artifacts;
+fork runs publish the summary and artifacts only. After merging the workflow,
+use **Run workflow** with a PR number to rerun against updated `main`.
+
+Six gRPC scenarios cover direct/Blockless queries on PT/VT handlers and
+serial/bounded-parallel fan-out. Fixed settings: Java 21, Postgres 18.1, 1 ms I/O,
+DB pool 10, PT pool 4, 32 concurrent requests, and 4 client connections.
+Five repetitions alternate base/candidate order with fresh app/database instances;
+each scenario gets 1s warmup and 3s measurement. Expected runtime: about 8 minutes.
+
+The compact report shows median throughput, p95 latency with run ranges, and
+errors. Raw ghz JSON retains all percentiles. Results are informational; compare
+changes with run variation and the direct/serial controls before judging a regression.
+Build or benchmark failures still fail CI. Shared-runner results describe these
+workloads; the short windows favor finding larger regressions over precise
+sub-percent comparisons.
