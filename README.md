@@ -144,41 +144,21 @@ mvn test -Dtest=BlocklessBenchmarkIT
 
 Apache 2.0
 
-## Performance comparisons on pull requests
+## Performance comparisons
 
-The **Performance comparison** GitHub Actions workflow benchmarks the latest `main`
-against the PR merged into that exact `main` commit. It runs on changes to the app,
-dependencies, or benchmark harness. After this workflow is on `main`, use **Run
-workflow** with a PR number and source repository to rerun an existing PR against an updated baseline.
-Select **smoke** for a short end-to-end pipeline check (1s warmup and 2s
-measurement); its report is explicitly labeled and is not performance evidence.
-Merge conflicts fail before benchmarking.
+The **Performance comparison** workflow compares latest `main` with the proposed
+PR merge. It updates one PR comment and publishes a summary with raw artifacts;
+fork runs publish the summary and artifacts only. After merging the workflow,
+use **Run workflow** with a PR number to rerun against updated `main`.
 
-Results appear in the workflow summary and one updated PR comment. Fork PRs get
-summaries and artifacts; their read-only token cannot post comments. Performance
-changes are informational, with no regression threshold blocking merges. Build,
-benchmark, or report failures still fail the workflow. Runs take roughly 75–95 minutes.
+Six gRPC scenarios cover direct/Blockless queries on PT/VT handlers and
+serial/bounded-parallel fan-out. Fixed settings: Java 21, Postgres 18.1, 1 ms I/O,
+DB pool 10, PT pool 4, 32 concurrent requests, and 4 client connections.
+Five repetitions alternate base/candidate order with fresh app/database instances;
+each scenario gets 5s warmup and 10s measurement. Expected runtime: about 20 minutes.
 
-The fixed gRPC workload uses ghz 0.120.0, Java 21, Postgres 18.1, a database pool
-of 10, a PT pool of 4, and 32 concurrent requests over 4 connections. Query covers
-join/Blockless on PT/VT handlers; FanOut covers serial, unbounded parallel, and
-parallel with concurrency 3. Each runs at 1 ms and 50 ms simulated DB latency.
-The proto in `benchmarks/greeting.proto` is the common client contract for both
-builds; keep it compatible with both versions being compared.
-
-Each of five repetitions starts a fresh application and database for each build,
-alternating base/candidate order. Each scenario gets 10 seconds of warmup and 20
-seconds of measurement. The report shows median and min–max requests/sec,
-p50/p95/p99 end-to-end latency, and error rates. Latency statistics summarize
-per-run percentiles, rather than a pooled distribution. Zero errors must accompany
-any apparent throughput improvement. Shared runners and a colocated load generator
-introduce noise; use repeated runs or a dedicated runner before enforcing limits.
-
-Download the workflow artifact for all raw ghz JSON, application/build logs, exact
-commit IDs, CPU/JDK/tool details, and the Postgres image digest. New commits cancel
-older runs; comments are skipped if the PR head advanced during measurement.
-
-The harness can also run locally with Java 21, Maven, Docker, Python 3,
-and `ghz` on PATH: prepare `base/` and `candidate/` checkouts in the repository root,
-then run `bash benchmarks/run.sh` and `python3 benchmarks/report.py`. These paths
-and `results/` are temporary workspace directories, not source files.
+The compact report shows median throughput, p95 latency with run ranges, and
+errors. Raw ghz JSON retains all percentiles. Results are informational; compare
+changes with run variation and the direct/serial controls before judging a regression.
+Build or benchmark failures still fail CI. Shared-runner results describe these
+workloads, not every production environment.

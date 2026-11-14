@@ -7,33 +7,12 @@ on:
       - 'src/**'
       - 'benchmarks/**'
       - '.github/workflows/performance.yml'
-  workflow_call:
-    inputs:
-      pr:
-        required: true
-        type: number
-      repository:
-        required: true
-        type: string
-      smoke:
-        description: 'Short end-to-end validation; not performance evidence'
-        default: false
-        type: boolean
   workflow_dispatch:
     inputs:
       pr:
         description: 'Open PR number to compare against latest main'
         required: true
         type: number
-      repository:
-        description: 'Repository containing the PR and main baseline'
-        default: 'pjlabs/blockless-spring-grpc-example'
-        required: true
-        type: string
-      smoke:
-        description: 'Short end-to-end validation; not performance evidence'
-        default: false
-        type: boolean
 permissions:
   contents: read
   pull-requests: write
@@ -43,12 +22,10 @@ concurrency:
 jobs:
   benchmark:
     runs-on: ubuntu-24.04
-    timeout-minutes: 110
+    timeout-minutes: 35
     env:
       PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
-      WARMUP: ${{ inputs.smoke && '1s' || '10s' }}
-      DURATION: ${{ inputs.smoke && '2s' || '20s' }}
-      SOURCE_REPOSITORY: ${{ github.event.pull_request.base.repo.full_name || inputs.repository }}
+      SOURCE_REPOSITORY: ${{ github.event.pull_request.base.repo.full_name || 'pjlabs/blockless-spring-grpc-example' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -77,6 +54,8 @@ jobs:
           HEAD_SHA=$(git rev-parse refs/remotes/origin/benchmark-pr)
           git worktree add --detach base "$BASE_SHA"
           git worktree add --detach candidate "$BASE_SHA"
+          mkdir -p results
+          cp base/src/main/proto/greeting.proto results/greeting.proto
           git -C candidate -c user.name=benchmark -c user.email=benchmark@localhost merge --no-edit "$HEAD_SHA"
           CANDIDATE_SHA=$(git -C candidate rev-parse HEAD)
           echo "BASE_SHA=$BASE_SHA" >> "$GITHUB_ENV"
@@ -100,7 +79,7 @@ jobs:
           python3 benchmarks/report.py
           cat results/report.md >> "$GITHUB_STEP_SUMMARY"
       - name: Update PR comment
-        if: (github.event_name == 'workflow_dispatch' && inputs.repository == github.repository) || github.event.pull_request.head.repo.full_name == github.repository
+        if: (github.event_name == 'workflow_dispatch' && env.SOURCE_REPOSITORY == github.repository) || github.event.pull_request.head.repo.full_name == github.repository
         uses: actions/github-script@v7
         with:
           script: |

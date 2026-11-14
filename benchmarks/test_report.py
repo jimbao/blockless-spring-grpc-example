@@ -3,6 +3,10 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+import sys
+
+sys.path.insert(0, str(Path(__file__).parent))
+from run import scenarios
 
 spec = importlib.util.spec_from_file_location('report', Path(__file__).with_name('report.py'))
 report = importlib.util.module_from_spec(spec)
@@ -18,20 +22,28 @@ class ReportTest(unittest.TestCase):
             for repetition in range(1, 6):
                 directory = self.root / variant / str(repetition)
                 directory.mkdir(parents=True)
-                (directory / 'query-measure.json').write_text(json.dumps({
-                    'count': 100, 'rps': rps, 'statusCodeDistribution': {'OK': 99},
-                    'latencyDistribution': [{'percentage': p, 'latency': latency} for p in (50, 95, 99)]}))
+                for name, _, _ in scenarios():
+                    (directory / f'{name}-measure.json').write_text(json.dumps({
+                        'count': 100, 'rps': rps, 'statusCodeDistribution': {'OK': 99},
+                        'latencyDistribution': [{'percentage': p, 'latency': latency} for p in (50, 95, 99)]}))
 
     def test_units_deltas_and_errors(self):
         output = report.report(self.root)
         self.assertIn('+20.0%', output)
         self.assertIn('-20.0%', output)
         self.assertIn('10.00 [10.00–10.00]', output)
-        self.assertIn('1.00 [1.00–1.00]', output)
-        self.assertIn('+0.00 pp', output)
+        self.assertIn('5/500 → 5/500', output)
+        self.assertEqual(sum(line.startswith('| Query') or line.startswith('| FanOut') for line in output.splitlines()), 6)
 
     def test_missing_repetition_rejected(self):
-        (self.root / 'base/1/query-measure.json').unlink()
+        next((self.root / 'base/1').glob('*-measure.json')).unlink()
+        with self.assertRaises(ValueError):
+            report.report(self.root)
+
+    def test_missing_scenario_rejected(self):
+        name = next(scenarios())[0]
+        for file in self.root.glob(f'*/*/{name}-measure.json'):
+            file.unlink()
         with self.assertRaises(ValueError):
             report.report(self.root)
 

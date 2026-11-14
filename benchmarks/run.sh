@@ -15,7 +15,7 @@ cleanup() {
 trap cleanup EXIT
 for variant in base candidate; do
   (cd "$root/$variant" && mvn -B -Dfmt.skip=true -DskipTests package) >"$results/$variant-build.log" 2>&1
- done
+done
 for repetition in 1 2 3 4 5; do
   order='base candidate'
   if (( repetition % 2 == 0 )); then order='candidate base'; fi
@@ -28,7 +28,7 @@ for repetition in 1 2 3 4 5; do
       postgres:18.1 >"$destination/database-container.txt"
     ready=false
     for attempt in {1..60}; do
-      if docker exec blockless-perf-db pg_isready -U postgres -d benchmark >/dev/null 2>&1; then ready=true; break; fi
+      if docker exec blockless-perf-db pg_isready -h 127.0.0.1 -U postgres -d benchmark >/dev/null 2>&1; then ready=true; break; fi
       sleep 1
     done
     [[ "$ready" == true ]]
@@ -43,6 +43,6 @@ for repetition in 1 2 3 4 5; do
       sleep 1
     done
     [[ "$ready" == true ]]
-    python3 "$root/benchmarks/run.py" --proto "$root/benchmarks/greeting.proto" --output "$destination" --warmup "${WARMUP:-10s}" --duration "${DURATION:-20s}"
+    python3 "$root/benchmarks/run.py" --proto "$results/greeting.proto" --output "$destination"
   done
- done
+done
