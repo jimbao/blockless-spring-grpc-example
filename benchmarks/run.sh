@@ -43,6 +43,6 @@ for repetition in 1 2 3 4 5; do
       sleep 1
     done
     [[ "$ready" == true ]]
-    python3 "$root/benchmarks/run.py" --proto "$root/benchmarks/greeting.proto" --output "$destination"
+    python3 "$root/benchmarks/run.py" --proto "$root/benchmarks/greeting.proto" --output "$destination" --warmup "${WARMUP:-10s}" --duration "${DURATION:-20s}"
   done
  done
