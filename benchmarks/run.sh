@@ -39,7 +39,7 @@ for repetition in 1 2 3 4 5; do
     ready=false
     for attempt in {1..120}; do
       kill -0 "$app_pid"
-      if rg -q 'Seeded 400 products' "$destination/application.log"; then ready=true; break; fi
+      if grep -q 'Seeded 400 products' "$destination/application.log"; then ready=true; break; fi
       sleep 1
     done
     [[ "$ready" == true ]]
