@@ -44,7 +44,7 @@ jobs:
           release=https://github.com/bojand/ghz/releases/download/v0.120.0
           curl -fsSLO "$release/ghz-linux-x86_64.tar.gz"
           curl -fsSLO "$release/ghz-linux-x86_64.tar.gz.sha256"
-          sha256sum --check ghz-linux-x86_64.tar.gz.sha256
+          printf '%s  %s\n' "$(cat ghz-linux-x86_64.tar.gz.sha256)" ghz-linux-x86_64.tar.gz | sha256sum --check -
           mkdir -p ghz-bin
           tar -xzf ghz-linux-x86_64.tar.gz -C ghz-bin ghz
           echo "$RUNNER_TEMP/ghz-bin" >> "$GITHUB_PATH"
