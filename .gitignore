@@ -5,3 +5,7 @@ target/
 .idea/
 *.iml
 .vscode/
+/base/
+/candidate/
+/results/
+__pycache__/
