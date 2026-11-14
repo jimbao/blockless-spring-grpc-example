@@ -11,3 +11,4 @@ jobs:
     with:
       pr: 5
       repository: pjlabs/blockless-spring-grpc-example
+      smoke: true
