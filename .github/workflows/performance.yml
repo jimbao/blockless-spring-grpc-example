@@ -22,7 +22,7 @@ concurrency:
 jobs:
   benchmark:
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
+    timeout-minutes: 15
     env:
       PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
       SOURCE_REPOSITORY: ${{ github.event.pull_request.base.repo.full_name || 'pjlabs/blockless-spring-grpc-example' }}
@@ -35,14 +35,17 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '1.24.2'
-          cache: false
+          cache: maven
       - name: Install pinned load generator
         run: |
-          go install github.com/bojand/ghz/cmd/ghz@v0.120.0
-          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+          cd "$RUNNER_TEMP"
+          release=https://github.com/bojand/ghz/releases/download/v0.120.0
+          curl -fsSLO "$release/ghz-linux-x86_64.tar.gz"
+          curl -fsSLO "$release/ghz-linux-x86_64.tar.gz.sha256"
+          sha256sum --check ghz-linux-x86_64.tar.gz.sha256
+          mkdir -p ghz-bin
+          tar -xzf ghz-linux-x86_64.tar.gz -C ghz-bin ghz
+          echo "$RUNNER_TEMP/ghz-bin" >> "$GITHUB_PATH"
       - name: Resolve latest main and proposed merge
         shell: bash
         run: |

@@ -155,10 +155,11 @@ Six gRPC scenarios cover direct/Blockless queries on PT/VT handlers and
 serial/bounded-parallel fan-out. Fixed settings: Java 21, Postgres 18.1, 1 ms I/O,
 DB pool 10, PT pool 4, 32 concurrent requests, and 4 client connections.
 Five repetitions alternate base/candidate order with fresh app/database instances;
-each scenario gets 5s warmup and 10s measurement. Expected runtime: about 20 minutes.
+each scenario gets 1s warmup and 3s measurement. Expected runtime: about 8 minutes.
 
 The compact report shows median throughput, p95 latency with run ranges, and
 errors. Raw ghz JSON retains all percentiles. Results are informational; compare
 changes with run variation and the direct/serial controls before judging a regression.
 Build or benchmark failures still fail CI. Shared-runner results describe these
-workloads, not every production environment.
+workloads; the short windows favor finding larger regressions over precise
+sub-percent comparisons.

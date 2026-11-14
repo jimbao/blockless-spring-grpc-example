@@ -31,7 +31,7 @@ def main():
                    '--connections', '4', '--timeout', '10s', '--duration-stop', 'wait', '--data', json.dumps(data),
                    '--format', 'json']
         print(name, flush=True)
-        for phase, duration in (('warmup', '5s'), ('measure', '10s')):
+        for phase, duration in (('warmup', '1s'), ('measure', '3s')):
             result = subprocess.run(command + ['--duration', duration,
                                                'localhost:9090'], capture_output=True, text=True)
             (output / f'{name}-{phase}.json').write_text(result.stdout)

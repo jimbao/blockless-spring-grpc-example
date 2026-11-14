@@ -48,7 +48,7 @@ def report(root):
             'FanOut / serial' if data['mode'] == 'serial' else 'FanOut / parallel (3)')
         lines.append(f'| {label} | {rates[0]:.1f} → {rates[1]:.1f} | {delta(*rates)} | '
                      f'{latency_cells[0]} → {latency_cells[1]} | {delta(*p95)} | {errors[0]} → {errors[1]} |')
-    lines += ['', '1 ms I/O · DB pool 10 · PT pool 4 · concurrency 32 · 5s warmup / 10s measurement.',
+    lines += ['', '1 ms I/O · DB pool 10 · PT pool 4 · concurrency 32 · 1s warmup / 3s measurement.',
               f"[Raw results, environment and logs]({os.environ.get('RUN_URL', '')})"]
     return '\n'.join(lines) + '\n'
 
