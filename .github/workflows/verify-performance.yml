@@ -1,0 +1,13 @@
+name: Verify performance workflow with upstream PR 5
+on:
+  push:
+    branches: [ci/verify-performance-pr-5]
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  verify:
+    uses: ./.github/workflows/performance.yml
+    with:
+      pr: 5
+      repository: pjlabs/blockless-spring-grpc-example
