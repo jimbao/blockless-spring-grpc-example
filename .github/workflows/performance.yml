@@ -7,12 +7,25 @@ on:
       - 'src/**'
       - 'benchmarks/**'
       - '.github/workflows/performance.yml'
+  workflow_call:
+    inputs:
+      pr:
+        required: true
+        type: number
+      repository:
+        required: true
+        type: string
   workflow_dispatch:
     inputs:
       pr:
         description: 'Open PR number to compare against latest main'
         required: true
         type: number
+      repository:
+        description: 'Repository containing the PR and main baseline'
+        default: 'pjlabs/blockless-spring-grpc-example'
+        required: true
+        type: string
 permissions:
   contents: read
   pull-requests: write
@@ -25,6 +38,7 @@ jobs:
     timeout-minutes: 110
     env:
       PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
+      SOURCE_REPOSITORY: ${{ github.event.pull_request.base.repo.full_name || inputs.repository }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -47,7 +61,8 @@ jobs:
         run: |
           set -euo pipefail
           [[ "$PR_NUMBER" =~ ^[0-9]+$ ]]
-          git fetch origin "+refs/heads/main:refs/remotes/origin/main" "+refs/pull/$PR_NUMBER/head:refs/remotes/origin/benchmark-pr"
+          [[ "$SOURCE_REPOSITORY" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]
+          git fetch "https://github.com/$SOURCE_REPOSITORY.git" "+refs/heads/main:refs/remotes/origin/main" "+refs/pull/$PR_NUMBER/head:refs/remotes/origin/benchmark-pr"
           BASE_SHA=$(git rev-parse refs/remotes/origin/main)
           HEAD_SHA=$(git rev-parse refs/remotes/origin/benchmark-pr)
           git worktree add --detach base "$BASE_SHA"
@@ -75,7 +90,7 @@ jobs:
           python3 benchmarks/report.py
           cat results/report.md >> "$GITHUB_STEP_SUMMARY"
       - name: Update PR comment
-        if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+        if: (github.event_name == 'workflow_dispatch' && inputs.repository == github.repository) || github.event.pull_request.head.repo.full_name == github.repository
         uses: actions/github-script@v7
         with:
           script: |
