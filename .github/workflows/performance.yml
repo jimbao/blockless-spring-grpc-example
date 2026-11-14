@@ -90,7 +90,7 @@ jobs:
           mvn -version > results/maven.txt
           ghz --version > results/ghz.txt
           lscpu > results/cpu.txt
-          env | sort | rg '^(BASE_SHA|HEAD_SHA|CANDIDATE_SHA|RUNNER_OS|RUNNER_ARCH)=' > results/metadata.txt
+          env | sort | grep -E '^(BASE_SHA|HEAD_SHA|CANDIDATE_SHA|RUNNER_OS|RUNNER_ARCH)=' > results/metadata.txt
           docker pull postgres:18.1
           docker image inspect postgres:18.1 --format '{{json .RepoDigests}}' > results/postgres-image.json
       - name: Benchmark both builds
