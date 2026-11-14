@@ -149,7 +149,9 @@ Apache 2.0
 The **Performance comparison** GitHub Actions workflow benchmarks the latest `main`
 against the PR merged into that exact `main` commit. It runs on changes to the app,
 dependencies, or benchmark harness. After this workflow is on `main`, use **Run
-workflow** with a PR number to rerun an existing PR against an updated baseline.
+workflow** with a PR number and source repository to rerun an existing PR against an updated baseline.
+Select **smoke** for a short end-to-end pipeline check (1s warmup and 2s
+measurement); its report is explicitly labeled and is not performance evidence.
 Merge conflicts fail before benchmarking.
 
 Results appear in the workflow summary and one updated PR comment. Fork PRs get
@@ -176,7 +178,7 @@ Download the workflow artifact for all raw ghz JSON, application/build logs, exa
 commit IDs, CPU/JDK/tool details, and the Postgres image digest. New commits cancel
 older runs; comments are skipped if the PR head advanced during measurement.
 
-The harness can also run locally with Java 21, Maven, Docker, Python 3, ripgrep,
+The harness can also run locally with Java 21, Maven, Docker, Python 3,
 and `ghz` on PATH: prepare `base/` and `candidate/` checkouts in the repository root,
 then run `bash benchmarks/run.sh` and `python3 benchmarks/report.py`. These paths
 and `results/` are temporary workspace directories, not source files.
