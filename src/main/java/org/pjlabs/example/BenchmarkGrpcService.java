@@ -92,22 +92,31 @@ public class BenchmarkGrpcService extends BenchmarkServiceGrpc.BenchmarkServiceI
     if ("continuation".equals(mode)) {
       final var executor =
           "vt".equals(threadType) ? VT_EXECUTOR : getPtExecutor(request.getPtPoolSize());
-      Continuations.run(
-              executor, work, new GrpcContextPropagator(), new Slf4jMdcContextPropagator())
-          .whenComplete(
-              (ignored, failure) -> {
-                if (failure != null) {
-                  final var cause =
-                      failure instanceof CompletionException && failure.getCause() != null
-                          ? failure.getCause()
-                          : failure;
-                  responseObserver.onError(
-                      Status.INTERNAL
-                          .withDescription("Query failed")
-                          .withCause(cause)
-                          .asRuntimeException());
-                }
-              });
+      final var completion =
+          Continuations.supplier(
+              executor,
+              () -> {
+                work.run();
+                return null;
+              },
+              new GrpcContextPropagator(),
+              new Slf4jMdcContextPropagator());
+      completion.onComplete(
+          () -> {
+            try {
+              completion.get();
+            } catch (Throwable failure) {
+              final var cause =
+                  failure instanceof CompletionException && failure.getCause() != null
+                      ? failure.getCause()
+                      : failure;
+              responseObserver.onError(
+                  Status.INTERNAL
+                      .withDescription("Query failed")
+                      .withCause(cause)
+                      .asRuntimeException());
+            }
+          });
     } else if ("pt".equals(threadType)) {
       CompletableFuture.runAsync(work, getPtExecutor(request.getPtPoolSize()));
     } else if ("vt".equals(threadType)) {

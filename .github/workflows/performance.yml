@@ -40,7 +40,7 @@ jobs:
         uses: actions/checkout@v7.0.1
         with:
           repository: jimbao/blockless
-          ref: 6425e3452db3923d647cf7a743b3068bc42be0f3
+          ref: ea3a5b78f85e2581112dc0d26c9f9649d6dbbc98
           path: .build/blockless
           persist-credentials: false
       - name: Install experimental continuation library

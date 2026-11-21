@@ -19,7 +19,7 @@ Requires Docker, Java 21+, Maven.
 ```sh
 # Build the experimental API (not yet published to Maven Central).
 git clone https://github.com/jimbao/blockless.git /tmp/blockless-native
-git -C /tmp/blockless-native checkout 6425e3452db3923d647cf7a743b3068bc42be0f3
+git -C /tmp/blockless-native checkout ea3a5b78f85e2581112dc0d26c9f9649d6dbbc98
 mvn -f /tmp/blockless-native/pom.xml -DskipTests install
 
 # Start Postgres
@@ -76,7 +76,7 @@ grpcurl -plaintext -d '{"mode": "parallel", "countries": ["SE","US","GB","DE","J
 ### Experimental continuation query
 
 The new mode is available on the **gRPC Query RPC**. It runs the same
-`Blockless.get()` database call inside `Continuations.run`, allowing a platform
+`Blockless.get()` database call inside `Continuations.supplier`, allowing a platform
 worker to return to its executor while the query runs on a virtual thread:
 
 ```sh
