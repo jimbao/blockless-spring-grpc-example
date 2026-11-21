@@ -19,7 +19,7 @@ Requires Docker, Java 21+, Maven.
 ```sh
 # Build the experimental API (not yet published to Maven Central).
 git clone https://github.com/jimbao/blockless.git /tmp/blockless-native
-git -C /tmp/blockless-native checkout 63841775a5b07707e70d5841dd398921f1ba968e
+git -C /tmp/blockless-native checkout 6425e3452db3923d647cf7a743b3068bc42be0f3
 mvn -f /tmp/blockless-native/pom.xml -DskipTests install
 
 # Start Postgres
@@ -86,7 +86,8 @@ grpcurl -plaintext -d '{"mode":"continuation","thread_type":"pt","pt_pool_size":
 The gRPC reply is sent after resumption, and asynchronous query failures terminate
 the RPC with `INTERNAL`. gRPC and MDC context propagators are installed around
 the continuation. This is experimental and requires the pinned library revision
-above. No annotations, bytecode enhancer, or Java agent are needed.
+above. The continuation adapter is maintained in Blockless and has no third-party
+runtime dependencies. No annotations, bytecode enhancer, or Java agent are needed.
 
 `mvn spring-boot:run` and the test JVM are configured with the required export.
 When launching the packaged jar yourself, include it explicitly:
