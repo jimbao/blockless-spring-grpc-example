@@ -71,7 +71,7 @@ public class BenchmarkGrpcService extends BenchmarkServiceGrpc.BenchmarkServiceI
           final var start = System.nanoTime();
 
           final int result;
-          if ("blockless".equals(mode) || "continuation".equals(mode)) {
+          if ("blockless".equals(mode)) {
             result = Blockless.get(() -> productRepository.countByCountryWithDelay(country, sleep));
           } else {
             result = productRepository.countByCountryWithDelay(country, sleep);

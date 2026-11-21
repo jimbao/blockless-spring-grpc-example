@@ -40,7 +40,7 @@ class BenchmarkContinuationTest {
                 .query(request(mode, thread, 0.001))
                 .get(5, TimeUnit.SECONDS);
         assertEquals(expected, reply.getResult());
-        assertEquals("vt".equals(thread), reply.getVirtualThread());
+        assertEquals("continuation".equals(mode) || "vt".equals(thread), reply.getVirtualThread());
       }
     }
   }
@@ -61,7 +61,7 @@ class BenchmarkContinuationTest {
               .query(request("continuation", "pt", 0.001))
               .get(1, TimeUnit.SECONDS);
       assertEquals(products.countByCountry("SE"), fast.getResult());
-      assertFalse(fast.getVirtualThread());
+      assertTrue(fast.getVirtualThread());
       assertFalse(slow.isDone(), "fast RPC must finish before the slow database query");
     } finally {
       slow.get(6, TimeUnit.SECONDS);

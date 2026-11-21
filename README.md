@@ -19,7 +19,7 @@ Requires Docker, Java 21+, Maven.
 ```sh
 # Build the experimental API (not yet published to Maven Central).
 git clone https://github.com/jimbao/blockless.git /tmp/blockless-native
-git -C /tmp/blockless-native checkout ea3a5b78f85e2581112dc0d26c9f9649d6dbbc98
+git -C /tmp/blockless-native checkout a1c1fec7df3df2a5dd4bb79b9eb951a516cccf5a
 mvn -f /tmp/blockless-native/pom.xml -DskipTests install
 
 # Start Postgres
@@ -76,14 +76,14 @@ grpcurl -plaintext -d '{"mode": "parallel", "countries": ["SE","US","GB","DE","J
 ### Experimental continuation query
 
 The new mode is available on the **gRPC Query RPC**. It runs the same
-`Blockless.get()` database call inside `Continuations.supplier`, allowing a platform
-worker to return to its executor while the query runs on a virtual thread:
+plain blocking database call inside `Continuations.supplier`. The body runs on a
+virtual thread while a native continuation releases its platform executor worker:
 
 ```sh
 grpcurl -plaintext -d '{"mode":"continuation","thread_type":"pt","pt_pool_size":4,"db_pool_size":10,"country":"SE","sleep_seconds":0.01}' localhost:9090 org.pjlabs.example.BenchmarkService/Query
 ```
 
-The gRPC reply is sent after resumption, and asynchronous query failures terminate
+The body sends the gRPC reply on its virtual thread, and asynchronous query failures terminate
 the RPC with `INTERNAL`. gRPC and MDC context propagators are installed around
 the continuation. This is experimental and requires the pinned library revision
 above. The continuation adapter is maintained in Blockless and has no third-party
@@ -98,8 +98,8 @@ java --add-exports=java.base/jdk.internal.vm=ALL-UNNAMED -Xms512m -Xmx512m \
 ```
 
 The HTTP endpoints retain their original modes; they do not expose the new
-continuation mode. Direct blocking work, `Parallel.map`, and ordinary calls outside
-a continuation boundary retain their normal waiting behavior.
+continuation mode. The continuation's executor controls dispatch and outcome
+publication; the query body always runs on a virtual thread, including with `thread_type=pt`.
 
 ### Compare continuation performance
 
