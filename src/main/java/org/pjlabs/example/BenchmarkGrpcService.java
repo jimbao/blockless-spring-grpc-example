@@ -1,12 +1,16 @@
 package org.pjlabs.example;
 
+import com.zaxxer.hikari.HikariDataSource;
 import io.github.pjlabs.blockless.Blockless;
 import io.github.pjlabs.blockless.Parallel;
+import io.github.pjlabs.blockless.context.grpc.GrpcContextPropagator;
 import io.github.pjlabs.blockless.context.slf4j.Slf4jMdcContextPropagator;
+import io.github.pjlabs.blockless.continuations.Continuations;
+import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
-import com.zaxxer.hikari.HikariDataSource;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import javax.sql.DataSource;
@@ -21,8 +25,7 @@ import org.pjlabs.example.proto.FanOutRequest;
 @GrpcService
 public class BenchmarkGrpcService extends BenchmarkServiceGrpc.BenchmarkServiceImplBase {
 
-  private static final ExecutorService VT_EXECUTOR =
-      Executors.newVirtualThreadPerTaskExecutor();
+  private static final ExecutorService VT_EXECUTOR = Executors.newVirtualThreadPerTaskExecutor();
   private static final int DEFAULT_PT_POOL = Runtime.getRuntime().availableProcessors();
   private static volatile ExecutorService ptExecutor =
       Executors.newFixedThreadPool(DEFAULT_PT_POOL);
@@ -41,7 +44,8 @@ public class BenchmarkGrpcService extends BenchmarkServiceGrpc.BenchmarkServiceI
   private final ProductRepository productRepository;
   private final HikariDataSource dataSource;
 
-  public BenchmarkGrpcService(final ProductRepository productRepository, final DataSource dataSource) {
+  public BenchmarkGrpcService(
+      final ProductRepository productRepository, final DataSource dataSource) {
     this.productRepository = productRepository;
     this.dataSource = (HikariDataSource) dataSource;
   }
@@ -62,12 +66,12 @@ public class BenchmarkGrpcService extends BenchmarkServiceGrpc.BenchmarkServiceI
     final var mode = request.getMode().isEmpty() ? "join" : request.getMode();
     final var threadType = request.getThreadType();
 
-    Runnable work =
+    final Runnable work =
         () -> {
           final var start = System.nanoTime();
 
           final int result;
-          if ("blockless".equals(mode)) {
+          if ("blockless".equals(mode) || "continuation".equals(mode)) {
             result = Blockless.get(() -> productRepository.countByCountryWithDelay(country, sleep));
           } else {
             result = productRepository.countByCountryWithDelay(country, sleep);
@@ -85,7 +89,26 @@ public class BenchmarkGrpcService extends BenchmarkServiceGrpc.BenchmarkServiceI
           responseObserver.onCompleted();
         };
 
-    if ("pt".equals(threadType)) {
+    if ("continuation".equals(mode)) {
+      final var executor =
+          "vt".equals(threadType) ? VT_EXECUTOR : getPtExecutor(request.getPtPoolSize());
+      Continuations.run(
+              executor, work, new GrpcContextPropagator(), new Slf4jMdcContextPropagator())
+          .whenComplete(
+              (ignored, failure) -> {
+                if (failure != null) {
+                  final var cause =
+                      failure instanceof CompletionException && failure.getCause() != null
+                          ? failure.getCause()
+                          : failure;
+                  responseObserver.onError(
+                      Status.INTERNAL
+                          .withDescription("Query failed")
+                          .withCause(cause)
+                          .asRuntimeException());
+                }
+              });
+    } else if ("pt".equals(threadType)) {
       CompletableFuture.runAsync(work, getPtExecutor(request.getPtPoolSize()));
     } else if ("vt".equals(threadType)) {
       CompletableFuture.runAsync(work, VT_EXECUTOR);
@@ -112,14 +135,10 @@ public class BenchmarkGrpcService extends BenchmarkServiceGrpc.BenchmarkServiceI
       if (maxConcurrency > 0) {
         parallel = parallel.withMaxConcurrency(maxConcurrency);
       }
-      results =
-          parallel.map(
-              countries, c -> productRepository.countByCountryWithDelay(c, sleep));
+      results = parallel.map(countries, c -> productRepository.countByCountryWithDelay(c, sleep));
     } else {
       results =
-          countries.stream()
-              .map(c -> productRepository.countByCountryWithDelay(c, sleep))
-              .toList();
+          countries.stream().map(c -> productRepository.countByCountryWithDelay(c, sleep)).toList();
     }
 
     final var elapsed = (System.nanoTime() - start) / 1_000_000;

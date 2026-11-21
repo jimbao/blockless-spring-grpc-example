@@ -49,7 +49,7 @@ message GreetSafeReply {
 // ─── Benchmark service ───
 
 service BenchmarkService {
-  // Single DB query — compare .join() vs Blockless.get()
+  // Single DB query — compare direct, waiting Blockless, and native continuation modes
   rpc Query (BenchmarkRequest) returns (BenchmarkReply);
 
   // Fan-out DB queries — compare serial vs Parallel.map()
@@ -57,7 +57,7 @@ service BenchmarkService {
 }
 
 message BenchmarkRequest {
-  string mode = 1;            // "join" | "blockless"
+  string mode = 1;            // "join" | "blockless" | "continuation" (experimental)
   string thread_type = 2;     // "pt" | "vt" (default: uses gRPC handler thread as-is)
   string country = 3;         // country to query
   double sleep_seconds = 4;   // pg_sleep per query (0 = no sleep)

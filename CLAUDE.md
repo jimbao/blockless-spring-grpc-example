@@ -9,7 +9,8 @@ Shows blockless works outside any specific framework ecosystem.
 
 - Spring Boot 3.2.x + Java 21
 - `net.devh:grpc-server-spring-boot-starter` for gRPC
-- blockless from GitHub Packages (`org.pjlabs:blockless`)
+- blockless from Maven Central (`io.github.pjlabs:blockless`); experimental continuation API
+  built from the pinned library revision documented in README.md
 - `fmt-maven-plugin` (Google Java Format)
 
 ## Build & Run

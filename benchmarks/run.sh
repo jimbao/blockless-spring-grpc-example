@@ -32,7 +32,7 @@ for repetition in 1 2 3 4 5; do
       sleep 1
     done
     [[ "$ready" == true ]]
-    java -Xms512m -Xmx512m -XX:ActiveProcessorCount=2 \
+    java --add-exports=java.base/jdk.internal.vm=ALL-UNNAMED -Xms512m -Xmx512m -XX:ActiveProcessorCount=2 \
       -jar "$root/$variant/target/blockless-spring-grpc-example-0.1.0-SNAPSHOT.jar" \
       --spring.datasource.hikari.maximum-pool-size=10 >"$destination/application.log" 2>&1 &
     app_pid=$!

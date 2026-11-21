@@ -6,10 +6,10 @@ A Spring Boot + gRPC demo app showing [blockless](https://github.com/pjlabs/bloc
 
 | RPC | Blockless feature | What it proves |
 |---|---|---|
-| `Greet` | `Blockless.get()` | Wait on a slow downstream without blocking platform threads |
+| `Greet` | `Blockless.get()` | Wait for a downstream result; ordinary platform callers still block |
 | `GreetAll` | `Parallel.map()` + `withMaxConcurrency(5)` | Bounded parallel fan-out with gRPC + MDC context propagation |
 | `GreetSafe` | `Parallel.toEither()` | Partial failure handling — some succeed, some fail, results stay in order |
-| `Query` | `Blockless.get()` vs direct call | Benchmark: compare join vs blockless on real DB queries |
+| `Query` | direct vs waiting Blockless vs experimental continuations | Compare bounded PT execution, suspended PT execution, and VT execution on real DB queries |
 | `FanOut` | `Parallel.map()` vs serial | Benchmark: compare serial vs parallel fan-out on real DB |
 
 ## Setup
@@ -17,6 +17,11 @@ A Spring Boot + gRPC demo app showing [blockless](https://github.com/pjlabs/bloc
 Requires Docker, Java 21+, Maven.
 
 ```sh
+# Build the experimental API (not yet published to Maven Central).
+git clone https://github.com/jimbao/blockless.git /tmp/blockless-native
+git -C /tmp/blockless-native checkout 63841775a5b07707e70d5841dd398921f1ba968e
+mvn -f /tmp/blockless-native/pom.xml -DskipTests install
+
 # Start Postgres
 docker compose up -d
 
@@ -68,12 +73,68 @@ grpcurl -plaintext -d '{"mode": "parallel", "countries": ["SE","US","GB","DE","J
 grpcurl -plaintext -d '{"mode": "parallel", "countries": ["SE","US","GB","DE","JP"], "sleep_seconds": 0.05, "max_concurrency": 3}' localhost:9090 org.pjlabs.example.BenchmarkService/FanOut
 ```
 
+### Experimental continuation query
+
+The new mode is available on the **gRPC Query RPC**. It runs the same
+`Blockless.get()` database call inside `Continuations.run`, allowing a platform
+worker to return to its executor while the query runs on a virtual thread:
+
+```sh
+grpcurl -plaintext -d '{"mode":"continuation","thread_type":"pt","pt_pool_size":4,"db_pool_size":10,"country":"SE","sleep_seconds":0.01}' localhost:9090 org.pjlabs.example.BenchmarkService/Query
+```
+
+The gRPC reply is sent after resumption, and asynchronous query failures terminate
+the RPC with `INTERNAL`. gRPC and MDC context propagators are installed around
+the continuation. This is experimental and requires the pinned library revision
+above. No annotations, bytecode enhancer, or Java agent are needed.
+
+`mvn spring-boot:run` and the test JVM are configured with the required export.
+When launching the packaged jar yourself, include it explicitly:
+
+```sh
+java --add-exports=java.base/jdk.internal.vm=ALL-UNNAMED -Xms512m -Xmx512m \
+  -XX:ActiveProcessorCount=2 -jar target/blockless-spring-grpc-example-0.1.0-SNAPSHOT.jar
+```
+
+The HTTP endpoints retain their original modes; they do not expose the new
+continuation mode. Direct blocking work, `Parallel.map`, and ordinary calls outside
+a continuation boundary retain their normal waiting behavior.
+
+### Compare continuation performance
+
+With the app and Postgres running, install
+[`ghz` v0.120.0](https://github.com/bojand/ghz/releases/tag/v0.120.0) and run:
+
+```sh
+python3 benchmarks/continuations.py
+```
+
+This compares `join`, waiting `blockless`, and `continuation` on both PT and VT
+handlers in the same application. Settings: PT pool 4, DB pool 10, 32 concurrent
+requests, 4 gRPC connections, and 10 ms `pg_sleep`. Five repetitions reverse
+scenario order on alternate runs; each case gets 1s warmup and 3s measurement.
+The report prints median requests/s, median p95 with its range, and errors.
+Latency is measured by the gRPC client and includes executor queueing; the
+reply's internal `elapsed_ms` field starts after dispatch and excludes queueing.
+Raw ghz output and settings are saved under ignored `results/continuations/`.
+Any RPC error fails the run. Treat shared-machine numbers as workload-specific;
+compare the native PT result with the ordinary VT control as well as the PT baseline.
+
+To expose the database pool limit, restart the app with
+`--spring.datasource.hikari.maximum-pool-size=4`, then repeat with the same PT
+and DB capacity. Restarting avoids measuring old connections left over from a
+larger pool:
+
+```sh
+python3 benchmarks/continuations.py --db-pool-size 4 --output results/continuations-db4
+```
+
 ### Benchmark parameters
 
 | Parameter | Values | Description |
 |---|---|---|
-| `mode` | `join`, `blockless` (Query) / `serial`, `parallel` (FanOut) | Which approach to use |
-| `thread_type` | `pt`, `vt`, empty | Force handler thread type (Query only) |
+| `mode` | `join`, `blockless`, `continuation` (gRPC Query) / `serial`, `parallel` (FanOut) | Which approach to use |
+| `thread_type` | `pt`, `vt`, empty | Query handler type; continuation defaults to the PT pool, other modes default to the gRPC handler |
 | `country` | any seeded country | `SE`, `US`, `GB`, `DE`, `JP`, `BR`, `IN`, `AU` |
 | `sleep_seconds` | float | pg_sleep per query (simulates I/O latency) |
 | `max_concurrency` | int | Limit parallel tasks (FanOut only, 0 = unbounded) |
@@ -82,7 +143,8 @@ grpcurl -plaintext -d '{"mode": "parallel", "countries": ["SE","US","GB","DE","J
 
 ### HTTP endpoints (for JMeter)
 
-Same logic as gRPC, exposed as HTTP GET on port 8080.
+The original query and fan-out modes are exposed as HTTP GET on port 8080.
+Experimental continuation mode is available only on the gRPC Query RPC.
 
 **Single query:**
 ```sh
@@ -120,11 +182,15 @@ Example test matrix:
 ## Tests
 
 ```sh
-mvn test
+docker compose up -d
+mvn verify
 ```
 
-8 tests covering:
+Tests cover:
 - `Blockless.get()` round-trip
+- Native continuation queries against real Postgres, including a second RPC
+  completing on a single platform worker while the first query is still sleeping
+- PT/VT result parity and asynchronous failure delivery
 - `Parallel.map()` fan-out correctness and parallelism (5 x 100ms in <400ms)
 - `Parallel.toEither()` partial failure and all-success cases
 - MDC traceId propagation from gRPC header to each virtual thread

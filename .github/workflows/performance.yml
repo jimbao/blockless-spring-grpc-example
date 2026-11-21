@@ -36,6 +36,15 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
+      - name: Check out experimental continuation library
+        uses: actions/checkout@v7.0.1
+        with:
+          repository: jimbao/blockless
+          ref: 63841775a5b07707e70d5841dd398921f1ba968e
+          path: .build/blockless
+          persist-credentials: false
+      - name: Install experimental continuation library
+        run: mvn -B -DskipTests install --file .build/blockless/pom.xml
       - name: Install pinned load generator
         run: |
           cd "$RUNNER_TEMP"

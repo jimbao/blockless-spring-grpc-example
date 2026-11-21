@@ -9,3 +9,5 @@ target/
 /candidate/
 /results/
 __pycache__/
+
+.build/
